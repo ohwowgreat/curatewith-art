@@ -1,0 +1,11 @@
+{
+  "name": "curatewith-art",
+  "private": true,
+  "scripts": {
+    "dev": "npx partykit dev",
+    "deploy": "npx partykit deploy --domain curatewith.art"
+  },
+  "devDependencies": {
+    "partykit": "^0.0.111"
+  }
+}

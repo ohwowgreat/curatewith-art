@@ -1,0 +1,8 @@
+{
+  "$schema": "https://www.partykit.io/schema.json",
+  "name": "curatewith-art",
+  "main": "party/server.ts",
+  "serve": "public",
+  "compatibilityDate": "2024-01-01",
+  "vars": {}
+}

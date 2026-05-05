@@ -1,0 +1,1239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<title>open archive</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --ink: #111;
+  --muted: #888;
+  --border: rgba(0,0,0,0.1);
+  --bg: #fff;
+  --surface: #f7f5f2;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  min-height: 100vh;
+}
+
+/* Nav */
+.site-nav {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1.1rem 1.5rem;
+  border-bottom: 0.5px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: rgba(255,255,255,0.94);
+  backdrop-filter: blur(10px);
+  z-index: 100;
+}
+
+.site-nav a {
+  text-decoration: none;
+  font-size: 14px;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.site-nav a.active { color: var(--ink); font-weight: 500; }
+.site-nav a:hover  { color: var(--ink); }
+
+.nav-divider {
+  width: 1px;
+  height: 14px;
+  background: var(--border);
+}
+
+.nav-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.nav-presence {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.presence-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #3aaa6e;
+}
+
+/* Museum switcher */
+.museum-select {
+  font-size: 12px;
+  font-family: 'Inter', sans-serif;
+  padding: 5px 28px 5px 10px;
+  border: 0.5px solid rgba(0,0,0,0.15);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23888' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 9px center;
+  transition: border-color 0.15s;
+}
+
+.museum-select:focus,
+.museum-select:hover { border-color: rgba(0,0,0,0.35); }
+
+/* Views */
+.view { display: none; }
+.view.active { display: block; }
+
+/* Tagline */
+.tagline {
+  font-family: 'Instrument Serif', serif;
+  font-style: italic;
+  font-size: 1.1rem;
+  color: var(--muted);
+  padding: 2rem 1.5rem 1.25rem;
+}
+
+/* Masonry grid */
+.grid {
+  columns: 4 200px;
+  column-gap: 28px;
+  padding: 0 28px 4rem;
+}
+
+.art-card {
+  break-inside: avoid;
+  margin-bottom: 28px;
+  cursor: pointer;
+  overflow: hidden;
+  position: relative;
+  background: var(--surface);
+}
+
+.art-card img {
+  display: block;
+  width: 100%;
+  height: auto;
+  transition: transform 0.4s ease;
+}
+
+.art-card:hover img { transform: scale(1.04); }
+
+.art-card .overlay {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  background: linear-gradient(transparent, rgba(0,0,0,0.72));
+  color: #fff;
+  padding: 2.5rem 0.75rem 0.8rem;
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+
+.art-card:hover .overlay { opacity: 1; }
+
+.overlay-title {
+  font-family: 'Instrument Serif', serif;
+  font-size: 0.88rem;
+  line-height: 1.25;
+  margin-bottom: 2px;
+}
+
+.overlay-artist { font-size: 11px; opacity: 0.75; }
+.overlay-date   { font-size: 10px; opacity: 0.55; margin-top: 2px; }
+
+/* Loader */
+.loader-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 3rem;
+}
+
+.spinner {
+  width: 18px; height: 18px;
+  border: 1.5px solid #ddd;
+  border-top-color: #666;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Footer */
+.site-footer {
+  text-align: center;
+  padding: 1.5rem;
+  font-size: 12px;
+  color: #bbb;
+  border-top: 0.5px solid var(--border);
+}
+
+.site-footer a { color: #bbb; text-decoration: none; }
+.site-footer a:hover { color: #666; }
+.footer-dot { margin: 0 0.5rem; }
+
+/* Modal */
+.modal-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.9);
+  z-index: 300;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+.modal-backdrop.open { display: flex; }
+
+.modal-inner {
+  position: relative;
+  max-width: 800px;
+  width: 100%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.modal-inner img {
+  max-height: 68vh;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+.modal-meta {
+  color: #fff;
+  margin-top: 1.25rem;
+  text-align: center;
+  max-width: 600px;
+}
+
+.modal-title {
+  font-family: 'Instrument Serif', serif;
+  font-size: 1.4rem;
+  margin-bottom: 6px;
+}
+
+.modal-sub  { font-size: 13px; color: rgba(255,255,255,0.55); line-height: 1.6; }
+.modal-link { display: inline-block; margin-top: 10px; font-size: 12px; color: rgba(255,255,255,0.4); text-decoration: none; border-bottom: 1px solid rgba(255,255,255,0.15); padding-bottom: 1px; }
+.modal-link:hover { color: rgba(255,255,255,0.8); }
+
+.modal-close {
+  position: absolute;
+  top: -2.2rem;
+  right: 0;
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.4);
+  font-size: 20px;
+  cursor: pointer;
+  line-height: 1;
+}
+.modal-close:hover { color: #fff; }
+
+/* Explore view */
+.explore-wrap {
+  padding: 2rem 1.5rem;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.view-title {
+  font-family: 'Instrument Serif', serif;
+  font-size: 1.7rem;
+  font-weight: 400;
+  margin-bottom: 1.5rem;
+  color: #222;
+}
+
+.search-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 2rem;
+}
+
+.search-row input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 0.5px solid rgba(0,0,0,0.15);
+  border-radius: 3px;
+  font-size: 14px;
+  font-family: 'Inter', sans-serif;
+  outline: none;
+  background: var(--bg);
+}
+
+.search-row input:focus { border-color: rgba(0,0,0,0.35); }
+
+.search-row button {
+  padding: 10px 22px;
+  background: var(--ink);
+  color: #fff;
+  border: none;
+  border-radius: 3px;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+}
+
+.search-row button:hover { background: #333; }
+
+.search-hint {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 1.5rem;
+  line-height: 1.6;
+}
+
+.search-hint span {
+  display: inline-block;
+  background: var(--surface);
+  padding: 2px 8px;
+  border-radius: 2px;
+  margin: 2px 3px;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.search-hint span:hover { background: #e8e5e0; }
+
+/* Curate / Play view */
+.play-wrap {
+  padding: 2rem 1.5rem;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.play-sub {
+  font-size: 14px;
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+  line-height: 1.6;
+}
+
+.room-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 2rem;
+}
+
+.room-badge {
+  font-size: 11px;
+  background: var(--surface);
+  padding: 4px 10px;
+  border-radius: 2px;
+  color: var(--muted);
+}
+
+.curate-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 12px;
+  margin-bottom: 1rem;
+}
+
+.curate-slot {
+  border: 1px dashed rgba(0,0,0,0.13);
+  border-radius: 2px;
+  aspect-ratio: 4/3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  overflow: hidden;
+  position: relative;
+  background: var(--surface);
+  transition: border-color 0.2s;
+}
+
+.curate-slot:hover { border-color: rgba(0,0,0,0.3); }
+
+.curate-slot img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  position: absolute; inset: 0;
+  transition: transform 0.35s;
+}
+
+.curate-slot:hover img { transform: scale(1.03); }
+
+.slot-add {
+  font-size: 12px;
+  color: #ccc;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.curate-slot.filled .slot-add { display: none; }
+
+.slot-overlay {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  background: linear-gradient(transparent, rgba(0,0,0,0.7));
+  color: #fff;
+  padding: 2rem 0.75rem 0.75rem;
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.curate-slot:hover .slot-overlay { opacity: 1; }
+
+.slot-overlay-title  { font-family: 'Instrument Serif', serif; font-size: 0.85rem; }
+.slot-overlay-artist { font-size: 10px; opacity: 0.7; margin-top: 2px; }
+
+.slot-remove {
+  position: absolute;
+  top: 6px; right: 6px;
+  width: 22px; height: 22px;
+  background: rgba(0,0,0,0.45);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 4;
+}
+
+.curate-slot:hover .slot-remove { opacity: 1; }
+.slot-remove:hover { background: rgba(0,0,0,0.7); }
+
+.curate-add-slot {
+  border: 1px dashed rgba(0,0,0,0.13);
+  border-radius: 2px;
+  aspect-ratio: 4/3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 12px;
+  color: #ccc;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.curate-add-slot:hover { border-color: rgba(0,0,0,0.3); color: #888; }
+
+.curate-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 2rem;
+  margin-top: 1rem;
+}
+
+/* Artwork picker */
+.picker-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.75);
+  z-index: 400;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.picker-backdrop.open { display: flex; }
+
+.picker-inner {
+  background: #fff;
+  width: 100%;
+  max-width: 900px;
+  max-height: 80vh;
+  border-radius: 8px 8px 0 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.picker-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 1rem 1.25rem;
+  border-bottom: 0.5px solid var(--border);
+  flex-shrink: 0;
+}
+
+.picker-header h3 {
+  font-family: 'Instrument Serif', serif;
+  font-size: 1.1rem;
+  font-weight: 400;
+  flex: 1;
+}
+
+.picker-search {
+  flex: 2;
+}
+
+.picker-search input {
+  width: 100%;
+  padding: 7px 12px;
+  border: 0.5px solid rgba(0,0,0,0.15);
+  border-radius: 3px;
+  font-size: 13px;
+  font-family: 'Inter', sans-serif;
+  outline: none;
+}
+
+.picker-search input:focus { border-color: rgba(0,0,0,0.35); }
+
+.picker-close {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: var(--muted);
+  line-height: 1;
+  padding: 4px;
+}
+
+.picker-close:hover { color: var(--ink); }
+
+.picker-body {
+  overflow-y: auto;
+  padding: 1rem 1.25rem;
+  flex: 1;
+}
+
+.picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.picker-card {
+  aspect-ratio: 1;
+  overflow: hidden;
+  cursor: pointer;
+  background: var(--surface);
+  border-radius: 2px;
+  position: relative;
+  transition: opacity 0.15s;
+}
+
+.picker-card:hover { opacity: 0.85; }
+
+.picker-card img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.picker-footer {
+  padding: 0.75rem 1.25rem;
+  border-top: 0.5px solid var(--border);
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.picker-loader {
+  display: flex;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.btn-ghost {
+  padding: 9px 20px;
+  background: none;
+  border: 0.5px solid rgba(0,0,0,0.2);
+  border-radius: 3px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  color: #444;
+  transition: background 0.15s;
+}
+
+.btn-ghost:hover { background: rgba(0,0,0,0.04); }
+
+.user-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.user-pill {
+  font-size: 11px;
+  background: var(--surface);
+  padding: 3px 10px;
+  border-radius: 20px;
+  color: var(--muted);
+}
+
+.user-pill.me { background: #111; color: #fff; }
+
+/* Connection status */
+.ws-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.ws-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #ccc;
+}
+
+.ws-dot.connected { background: #3aaa6e; }
+.ws-dot.error     { background: #e55; }
+</style>
+</head>
+<body>
+
+<nav class="site-nav">
+  <a class="active" id="nav-gallery" onclick="switchView('gallery')">gallery</a>
+  <a id="nav-explore" onclick="switchView('explore')">uncovered</a>
+  <a id="nav-play"    onclick="switchView('play')">curate together</a>
+  <div class="nav-right">
+    <select class="museum-select" id="museum-select" onchange="switchMuseum(this.value)">
+      <option value="moma">MoMA</option>
+      <option value="met">The Met</option>
+      <option value="aic">Art Institute of Chicago</option>
+      <option value="cma">Cleveland Museum of Art</option>
+      <option value="nga">National Gallery of Art</option>
+    </select>
+    <div class="nav-presence" id="nav-presence" style="display:none">
+      <div class="presence-dot"></div>
+      <span id="presence-count">1 in room</span>
+    </div>
+  </div>
+</nav>
+
+<!-- Gallery -->
+<div class="view active" id="view-gallery">
+  <p class="tagline" id="gallery-tagline">Come for a stroll through the garden of human creativity...</p>
+  <div class="grid" id="main-grid"></div>
+  <div class="loader-wrap" id="main-loader"><div class="spinner"></div></div>
+</div>
+
+<!-- Explore -->
+<div class="view" id="view-explore">
+  <div class="explore-wrap">
+    <h2 class="view-title">uncover something</h2>
+    <div class="search-row">
+      <input type="text" id="search-input" placeholder="Artist, department, keyword..." />
+      <button onclick="doSearch()">search</button>
+    </div>
+    <p class="search-hint" id="search-hints">
+      Try:
+      <span onclick="quickSearch('painting')">painting</span>
+      <span onclick="quickSearch('photography')">photography</span>
+      <span onclick="quickSearch('picasso')">picasso</span>
+      <span onclick="quickSearch('warhol')">warhol</span>
+      <span onclick="quickSearch('drawing')">drawing</span>
+      <span onclick="quickSearch('architecture')">architecture</span>
+      <span onclick="quickSearch('matisse')">matisse</span>
+      <span onclick="quickSearch('film')">film</span>
+    </p>
+    <div class="grid" id="search-grid"></div>
+    <div class="loader-wrap" id="search-loader" style="display:none"><div class="spinner"></div></div>
+    <p id="search-empty" style="display:none;font-size:14px;color:#bbb;padding:2rem 0">No results found for that term.</p>
+  </div>
+</div>
+
+<!-- Curate Together -->
+<div class="view" id="view-play">
+  <div class="play-wrap">
+    <h2 class="view-title">curate together</h2>
+    <p class="play-sub">Assemble four works that belong in the same room. Others can join and build alongside you in real time.</p>
+    <div class="room-info">
+      <div class="ws-status">
+        <div class="ws-dot" id="ws-dot"></div>
+        <span id="ws-label">connecting...</span>
+      </div>
+      <div class="room-badge" id="room-badge">room: ...</div>
+    </div>
+
+    <div class="curate-grid" id="curate-grid"></div>
+
+    <div class="curate-actions">
+      <button class="btn-ghost" onclick="shuffleAll()">shuffle all</button>
+      <button class="btn-ghost" onclick="clearAll()">clear</button>
+      <button class="btn-ghost" onclick="shareRoom()">share room link</button>
+    </div>
+
+    <div style="margin-bottom:0.75rem;font-size:12px;color:#bbb">others in this room:</div>
+    <div class="user-list" id="user-list"></div>
+  </div>
+</div>
+
+<footer class="site-footer">
+  <span id="footer-source"></span>
+  <span class="footer-dot">·</span>
+  <a href="#">Privacy</a>
+  <span class="footer-dot">·</span>
+  <a href="#">Terms</a>
+</footer>
+
+<!-- Modal -->
+<div class="modal-backdrop" id="modal" onclick="handleModalClick(event)">
+  <div class="modal-inner">
+    <button class="modal-close" onclick="closeModal()">&#x2715;</button>
+    <img id="modal-img" src="" alt="" style="display:none"/>
+    <div class="modal-meta">
+      <div class="modal-title" id="modal-title"></div>
+      <div class="modal-sub"  id="modal-sub"></div>
+      <a id="modal-link" class="modal-link" href="#" target="_blank" rel="noopener">View on museum site</a>
+    </div>
+  </div>
+</div>
+
+<!-- Artwork Picker -->
+<div class="picker-backdrop" id="picker" onclick="handlePickerClick(event)">
+  <div class="picker-inner">
+    <div class="picker-header">
+      <h3>choose an artwork</h3>
+      <div class="picker-search">
+        <input type="text" id="picker-search-input" placeholder="Search by artist, title, department..."/>
+      </div>
+      <button class="picker-close" onclick="closePicker()">&#x2715;</button>
+    </div>
+    <div class="picker-body">
+      <div class="picker-grid" id="picker-grid"></div>
+      <div class="picker-loader" id="picker-loader" style="display:none"><div class="spinner"></div></div>
+    </div>
+    <div class="picker-footer">
+      <button class="btn-ghost" onclick="loadMorePicker()">load more</button>
+      <button class="btn-ghost" id="picker-random-btn" onclick="loadPickerRandom()">shuffle</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const PARTYKIT_HOST = window.PARTYKIT_HOST ||
+  (location.hostname === "localhost" ? "localhost:1999" : location.hostname);
+const PARTY_NAME = "main";
+
+const MUSEUMS = {
+  moma: {
+    tagline: "Come for a stroll through the garden of human creativity...",
+    footerHtml: '<a href="https://github.com/MuseumofModernArt/collection" target="_blank" rel="noopener">MoMA Open Data</a>',
+    modalLink: "View on MoMA.org",
+    searchHints: ["painting","photography","picasso","warhol","drawing","architecture","matisse","film"],
+  },
+  met: {
+    tagline: "Five thousand years of art from across the world...",
+    footerHtml: '<a href="https://www.metmuseum.org/about-the-met/policies-and-documents/open-access" target="_blank" rel="noopener">The Met Open Access</a>',
+    modalLink: "View on metmuseum.org",
+    searchHints: ["impressionism","greek","egypt","japanese","medieval","american","textile","sculpture"],
+  },
+  aic: {
+    tagline: "From ancient civilizations to modern masters at the Art Institute of Chicago...",
+    footerHtml: '<a href="https://www.artic.edu/open-access" target="_blank" rel="noopener">Art Institute of Chicago Open Access</a>',
+    modalLink: "View on artic.edu",
+    searchHints: ["impressionism","seurat","picasso","textile","ancient","japanese","modern","arms"],
+  },
+  cma: {
+    tagline: "Exploring the art of cultures worldwide at the Cleveland Museum of Art...",
+    footerHtml: '<a href="https://www.clevelandart.org/open-access" target="_blank" rel="noopener">Cleveland Museum of Art Open Access</a>',
+    modalLink: "View on clevelandart.org",
+    searchHints: ["armor","medieval","egypt","japanese","silver","baroque","landscape","drawing"],
+  },
+  nga: {
+    tagline: "From Renaissance masters to American modernism at the National Gallery of Art...",
+    footerHtml: '<a href="https://github.com/NationalGalleryOfArt/opendata" target="_blank" rel="noopener">National Gallery of Art Open Data</a>',
+    modalLink: "View on nga.gov",
+    searchHints: ["renaissance","dutch","american","monet","degas","landscape","portrait","baroque"],
+  },
+};
+
+function getRoomId() {
+  if (location.hash && location.hash.length > 1) return location.hash.slice(1);
+  const id = Math.random().toString(36).slice(2, 8);
+  location.hash = id;
+  return id;
+}
+
+const ROOM_ID = getRoomId();
+
+// ---- State ----
+let currentMuseum  = "moma";
+let galleryLoading = false;
+let galleryDone    = false;
+let artPool        = [];
+
+// ---- API ----
+function apiBase() {
+  const proto = PARTYKIT_HOST.startsWith("localhost") ? "http" : "https";
+  return `${proto}://${PARTYKIT_HOST}/parties/${PARTY_NAME}/${ROOM_ID}`;
+}
+
+async function fetchRandom(n) {
+  const res = await fetch(`${apiBase()}?random=${n}&museum=${currentMuseum}`);
+  return (await res.json()).artworks || [];
+}
+
+async function fetchSearch(q) {
+  const res = await fetch(`${apiBase()}?search=${encodeURIComponent(q.toLowerCase())}&museum=${currentMuseum}`);
+  return (await res.json()).artworks || [];
+}
+
+// ---- Museum switching ----
+function switchMuseum(museum) {
+  if (museum === currentMuseum) return;
+  currentMuseum = museum;
+
+  document.getElementById("museum-select").value = museum;
+
+  const info = MUSEUMS[museum];
+  document.getElementById("gallery-tagline").textContent = info.tagline;
+  document.getElementById("footer-source").innerHTML = info.footerHtml;
+  document.getElementById("modal-link").textContent = info.modalLink;
+
+  const hints = info.searchHints;
+  document.getElementById("search-hints").innerHTML =
+    "Try: " + hints.map(h => `<span onclick="quickSearch('${h}')">${h}</span>`).join("");
+
+  // Reset and reload gallery
+  artPool = [];
+  galleryLoading = false;
+  galleryDone = false;
+  document.getElementById("main-grid").innerHTML = "";
+  document.getElementById("search-grid").innerHTML = "";
+  loadGalleryPage();
+}
+
+// ---- Card rendering ----
+function makeCard(artwork, onClick) {
+  if (!artwork.thumbnailUrl) return null;
+
+  const div = document.createElement("div");
+  div.className = "art-card";
+
+  const img = document.createElement("img");
+  img.loading = "lazy";
+  img.alt = artwork.title || "";
+  img.src = artwork.thumbnailUrl;
+
+  const overlay = document.createElement("div");
+  overlay.className = "overlay";
+  overlay.innerHTML = `
+    <div class="overlay-title">${esc(artwork.title || "Untitled")}</div>
+    <div class="overlay-artist">${esc((artwork.artist || "").split(",")[0])}</div>
+    <div class="overlay-date">${esc(artwork.date || "")}</div>
+  `;
+
+  img.onerror = () => div.remove();
+
+  div.appendChild(img);
+  div.appendChild(overlay);
+  div.addEventListener("click", () => onClick ? onClick(artwork) : openModal(artwork));
+  return div;
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+// ---- Modal ----
+function openModal(artwork) {
+  const img   = document.getElementById("modal-img");
+  const title = document.getElementById("modal-title");
+  const sub   = document.getElementById("modal-sub");
+  const link  = document.getElementById("modal-link");
+
+  title.textContent = artwork.title || "Untitled";
+  const artistLine = [artwork.artist, artwork.artistBio].filter(Boolean).join(" · ");
+  const metaLine   = [artwork.date, artwork.classification || artwork.medium, artwork.department].filter(Boolean).join("  ·  ");
+  sub.innerHTML = [artistLine, metaLine, artwork.dimensions].filter(Boolean)
+    .map(s => `<span>${esc(s)}</span>`).join("<br>");
+
+  link.href = artwork.url || "#";
+  link.textContent = MUSEUMS[currentMuseum].modalLink;
+
+  if (artwork.thumbnailUrl) {
+    img.src = artwork.thumbnailUrl;
+    img.style.display = "block";
+    img.onerror = () => { img.style.display = "none"; };
+  } else {
+    img.style.display = "none";
+  }
+
+  document.getElementById("modal").classList.add("open");
+}
+
+function closeModal() {
+  document.getElementById("modal").classList.remove("open");
+}
+
+function handleModalClick(e) {
+  if (e.target === document.getElementById("modal")) closeModal();
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeModal();
+});
+
+// ---- Gallery infinite scroll ----
+async function loadGalleryPage() {
+  if (galleryLoading || galleryDone) return;
+  galleryLoading = true;
+  document.getElementById("main-loader").style.display = "flex";
+
+  try {
+    const artworks = await fetchRandom(24);
+    if (!artworks.length) { galleryDone = true; return; }
+    const grid = document.getElementById("main-grid");
+    artworks.forEach((a) => {
+      artPool.push(a);
+      const card = makeCard(a);
+      if (card) grid.appendChild(card);
+    });
+  } catch (err) {
+    console.error("Gallery load error:", err);
+  }
+
+  galleryLoading = false;
+  document.getElementById("main-loader").style.display = "none";
+}
+
+window.addEventListener("scroll", () => {
+  if (!document.getElementById("view-gallery").classList.contains("active")) return;
+  if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 600) {
+    loadGalleryPage();
+  }
+});
+
+// ---- View switching ----
+function switchView(view) {
+  ["gallery", "explore", "play"].forEach((v) => {
+    document.getElementById("view-" + v).classList.toggle("active", v === view);
+    document.getElementById("nav-"  + v).classList.toggle("active", v === view);
+  });
+  if (view === "play") {
+    document.getElementById("nav-presence").style.display = "flex";
+  }
+}
+
+// ---- Search ----
+async function doSearch() {
+  const q = document.getElementById("search-input").value.trim();
+  if (!q) return;
+
+  const grid   = document.getElementById("search-grid");
+  const loader = document.getElementById("search-loader");
+  const empty  = document.getElementById("search-empty");
+
+  grid.innerHTML = "";
+  empty.style.display = "none";
+  loader.style.display = "flex";
+
+  try {
+    const artworks = await fetchSearch(q);
+    if (artworks.length) {
+      artworks.forEach((a) => {
+        artPool.push(a);
+        const card = makeCard(a);
+        if (card) grid.appendChild(card);
+      });
+    } else {
+      empty.style.display = "block";
+    }
+  } catch (err) {
+    console.error("Search error:", err);
+    empty.style.display = "block";
+  }
+
+  loader.style.display = "none";
+}
+
+function quickSearch(term) {
+  document.getElementById("search-input").value = term;
+  doSearch();
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("search-input").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") doSearch();
+  });
+  // Init footer
+  document.getElementById("footer-source").innerHTML = MUSEUMS[currentMuseum].footerHtml;
+});
+
+// ---- Curate: dynamic slots ----
+let curationSlots = [null, null, null, null];
+let pendingSlotIndex = null;
+
+function broadcastSlots() {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: "update_slots", slots: curationSlots }));
+  }
+}
+
+function renderCurateGrid() {
+  const grid = document.getElementById("curate-grid");
+  grid.innerHTML = "";
+  curationSlots.forEach((artwork, i) => {
+    grid.appendChild(makeSlotEl(artwork, i));
+  });
+  // Add slot button at the end
+  const addBtn = document.createElement("div");
+  addBtn.className = "curate-add-slot";
+  addBtn.textContent = "+ add slot";
+  addBtn.onclick = () => {
+    curationSlots.push(null);
+    renderCurateGrid();
+    broadcastSlots();
+  };
+  grid.appendChild(addBtn);
+}
+
+function makeSlotEl(artwork, i) {
+  const slot = document.createElement("div");
+  slot.className = "curate-slot" + (artwork ? " filled" : "");
+  slot.onclick = (e) => {
+    if (e.target.classList.contains("slot-remove")) return;
+    openPicker(i);
+  };
+
+  // Remove button
+  const removeBtn = document.createElement("button");
+  removeBtn.className = "slot-remove";
+  removeBtn.innerHTML = "&#x2715;";
+  removeBtn.onclick = (e) => {
+    e.stopPropagation();
+    curationSlots.splice(i, 1);
+    renderCurateGrid();
+    broadcastSlots();
+  };
+  slot.appendChild(removeBtn);
+
+  if (artwork) {
+    if (artwork.thumbnailUrl) {
+      const img = document.createElement("img");
+      img.src = artwork.thumbnailUrl;
+      img.alt = artwork.title || "";
+      img.onerror = () => { img.style.display = "none"; };
+      slot.appendChild(img);
+    }
+    const overlay = document.createElement("div");
+    overlay.className = "slot-overlay";
+    overlay.innerHTML = `
+      <div class="slot-overlay-title">${esc(artwork.title || "Untitled")}</div>
+      <div class="slot-overlay-artist">${esc((artwork.artist || "").split(",")[0])}</div>
+    `;
+    slot.appendChild(overlay);
+  } else {
+    const label = document.createElement("span");
+    label.className = "slot-add";
+    label.textContent = "+ choose a work";
+    slot.appendChild(label);
+  }
+
+  return slot;
+}
+
+async function shuffleAll() {
+  const fresh = await fetchRandom(curationSlots.length);
+  fresh.forEach((a, i) => { if (i < curationSlots.length) curationSlots[i] = a; });
+  renderCurateGrid();
+  broadcastSlots();
+}
+
+function clearAll() {
+  curationSlots = curationSlots.map(() => null);
+  renderCurateGrid();
+  broadcastSlots();
+}
+
+// ---- Artwork picker ----
+let pickerPool = [];
+
+async function openPicker(slotIndex) {
+  pendingSlotIndex = slotIndex;
+  document.getElementById("picker").classList.add("open");
+  document.getElementById("picker-search-input").value = "";
+  if (pickerPool.length === 0) await loadPickerRandom();
+  else renderPickerGrid(pickerPool);
+}
+
+function closePicker() {
+  document.getElementById("picker").classList.remove("open");
+  pendingSlotIndex = null;
+}
+
+function handlePickerClick(e) {
+  if (e.target === document.getElementById("picker")) closePicker();
+}
+
+async function loadPickerRandom() {
+  setPickerLoading(true);
+  pickerPool = [];
+  try {
+    const artworks = await fetchRandom(24);
+    pickerPool = artworks.filter(a => a.thumbnailUrl);
+    renderPickerGrid(pickerPool);
+  } catch (err) {
+    console.error("Picker load error:", err);
+  }
+  setPickerLoading(false);
+}
+
+async function loadMorePicker() {
+  const q = document.getElementById("picker-search-input").value.trim();
+  setPickerLoading(true);
+  try {
+    const artworks = q ? await fetchSearch(q) : await fetchRandom(24);
+    const fresh = artworks.filter(a => a.thumbnailUrl);
+    pickerPool.push(...fresh);
+    renderPickerGrid(pickerPool);
+  } catch (err) {
+    console.error("Picker load more error:", err);
+  }
+  setPickerLoading(false);
+}
+
+function renderPickerGrid(artworks) {
+  const grid = document.getElementById("picker-grid");
+  grid.innerHTML = "";
+  artworks.forEach(artwork => {
+    const card = document.createElement("div");
+    card.className = "picker-card";
+    const img = document.createElement("img");
+    img.src = artwork.thumbnailUrl;
+    img.alt = artwork.title || "";
+    img.loading = "lazy";
+    img.onerror = () => card.remove();
+    card.appendChild(img);
+    card.onclick = () => selectPickerArtwork(artwork);
+    grid.appendChild(card);
+  });
+}
+
+function selectPickerArtwork(artwork) {
+  if (pendingSlotIndex === null) return;
+  curationSlots[pendingSlotIndex] = artwork;
+  artPool.push(artwork);
+  renderCurateGrid();
+  broadcastSlots();
+  closePicker();
+}
+
+function setPickerLoading(on) {
+  document.getElementById("picker-loader").style.display = on ? "flex" : "none";
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("picker-search-input").addEventListener("keydown", async (e) => {
+    if (e.key !== "Enter") return;
+    const q = e.target.value.trim();
+    if (!q) return;
+    setPickerLoading(true);
+    pickerPool = [];
+    try {
+      const artworks = await fetchSearch(q);
+      pickerPool = artworks.filter(a => a.thumbnailUrl);
+      renderPickerGrid(pickerPool);
+    } catch (err) { console.error(err); }
+    setPickerLoading(false);
+  });
+});
+
+function shareRoom() {
+  const url = `${location.origin}${location.pathname}#${ROOM_ID}`;
+  navigator.clipboard.writeText(url).then(() => {
+    alert("Room link copied to clipboard:\n" + url);
+  }).catch(() => {
+    prompt("Copy this room link:", url);
+  });
+}
+
+// ---- PartyKit WebSocket ----
+let ws = null;
+const myId = Math.random().toString(36).slice(2, 10);
+
+function connectWS() {
+  const proto = PARTYKIT_HOST.startsWith("localhost") ? "ws" : "wss";
+  const url   = `${proto}://${PARTYKIT_HOST}/parties/${PARTY_NAME}/${ROOM_ID}`;
+
+  document.getElementById("room-badge").textContent = `room: ${ROOM_ID}`;
+
+  ws = new WebSocket(url);
+
+  ws.onopen = () => {
+    setWsStatus("connected");
+    ws.send(JSON.stringify({ type: "set_name", name: `visitor-${myId.slice(0, 4)}` }));
+  };
+
+  ws.onclose = () => {
+    setWsStatus("disconnected");
+    setTimeout(connectWS, 3000);
+  };
+
+  ws.onerror = () => setWsStatus("error");
+
+  ws.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+
+    if (msg.type === "init" || msg.type === "slots") {
+      const slots = msg.state ? msg.state.slots : msg.slots;
+      if (JSON.stringify(slots) !== JSON.stringify(curationSlots)) {
+        curationSlots = slots;
+        renderCurateGrid();
+      }
+    }
+
+    if (msg.type === "users" || (msg.type === "init" && msg.state?.users)) {
+      const users = msg.users || msg.state?.users || {};
+      renderUsers(users);
+    }
+  };
+}
+
+function setWsStatus(status) {
+  const dot   = document.getElementById("ws-dot");
+  const label = document.getElementById("ws-label");
+  dot.className = "ws-dot " + status;
+  label.textContent = status === "connected" ? "live" : status;
+}
+
+function renderUsers(users) {
+  const list  = document.getElementById("user-list");
+  const count = Object.keys(users).length;
+  list.innerHTML = "";
+  Object.values(users).forEach((name) => {
+    const pill = document.createElement("div");
+    pill.className = "user-pill";
+    pill.textContent = name;
+    list.appendChild(pill);
+  });
+  document.getElementById("presence-count").textContent =
+    count + (count === 1 ? " person in room" : " people in room");
+}
+
+// ---- Init ----
+loadGalleryPage();
+connectWS();
+renderCurateGrid();
+</script>
+</body>
+</html>
