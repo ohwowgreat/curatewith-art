@@ -6,6 +6,6 @@
     "deploy": "npx partykit deploy --domain curatewith.art"
   },
   "devDependencies": {
-    "partykit": "^0.0.111"
+    "partykit": "^0.0.115"
   }
 }
