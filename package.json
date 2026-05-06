@@ -2,10 +2,9 @@
   "name": "curatewith-art",
   "private": true,
   "scripts": {
-    "dev": "npx partykit dev",
-    "deploy": "npx partykit deploy --domain curatewith.art"
+    "deploy": "wrangler deploy"
   },
   "devDependencies": {
-    "partykit": "^0.0.115"
+    "wrangler": "^3"
   }
 }
