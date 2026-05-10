@@ -1,4 +1,4 @@
-const TARGET = "open-archive.ohwowgreat.partykit.dev";
+const TARGET = "curatewith-art.ohwowgreat.partykit.dev";
 
 export default {
   async fetch(request) {

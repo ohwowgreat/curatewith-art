@@ -588,6 +588,23 @@ body {
 
 .user-pill.me { background: #111; color: #fff; }
 
+/* Museum badge on cards */
+.museum-badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  font-size: 9px;
+  font-weight: 500;
+  background: rgba(0,0,0,0.5);
+  color: #fff;
+  padding: 2px 6px;
+  border-radius: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  z-index: 3;
+  pointer-events: none;
+}
+
 /* Connection status */
 .ws-status {
   display: inline-flex;
@@ -611,10 +628,11 @@ body {
 
 <nav class="site-nav">
   <a class="active" id="nav-gallery" onclick="switchView('gallery')">gallery</a>
-  <a id="nav-explore" onclick="switchView('explore')">uncovered</a>
+  <a id="nav-explore" onclick="switchView('explore')">search</a>
   <a id="nav-play"    onclick="switchView('play')">curate together</a>
   <div class="nav-right">
     <select class="museum-select" id="museum-select" onchange="switchMuseum(this.value)">
+      <option value="all">All archives</option>
       <option value="moma">MoMA</option>
       <option value="met">The Met</option>
       <option value="aic">Art Institute of Chicago</option>
@@ -630,7 +648,7 @@ body {
 
 <!-- Gallery -->
 <div class="view active" id="view-gallery">
-  <p class="tagline" id="gallery-tagline">Come for a stroll through the garden of human creativity...</p>
+  <p class="tagline" id="gallery-tagline"></p>
   <div class="grid" id="main-grid"></div>
   <div class="loader-wrap" id="main-loader"><div class="spinner"></div></div>
 </div>
@@ -638,8 +656,16 @@ body {
 <!-- Explore -->
 <div class="view" id="view-explore">
   <div class="explore-wrap">
-    <h2 class="view-title">uncover something</h2>
+    <h2 class="view-title">search</h2>
     <div class="search-row">
+      <select class="museum-select" id="search-museum-select" onchange="searchMuseum=this.value" style="flex-shrink:0">
+        <option value="all">All archives</option>
+        <option value="moma">MoMA</option>
+        <option value="met">The Met</option>
+        <option value="aic">Art Institute of Chicago</option>
+        <option value="cma">Cleveland Museum of Art</option>
+        <option value="nga">National Gallery of Art</option>
+      </select>
       <input type="text" id="search-input" placeholder="Artist, department, keyword..." />
       <button onclick="doSearch()">search</button>
     </div>
@@ -733,7 +759,15 @@ const PARTYKIT_HOST = window.PARTYKIT_HOST ||
   (location.hostname === "localhost" ? "localhost:1999" : location.hostname);
 const PARTY_NAME = "main";
 
+const MUSEUM_LABELS = { moma: "MoMA", met: "Met", aic: "AIC", cma: "CMA", nga: "NGA" };
+
 const MUSEUMS = {
+  all: {
+    tagline: "Exploring five open archives spanning centuries of human creativity...",
+    footerHtml: "MoMA · The Met · Art Institute of Chicago · Cleveland Museum of Art · National Gallery of Art",
+    modalLink: "View on museum site",
+    searchHints: ["painting","portrait","landscape","sculpture","drawing","photography","textile","medieval"],
+  },
   moma: {
     tagline: "Come for a stroll through the garden of human creativity...",
     footerHtml: '<a href="https://github.com/MuseumofModernArt/collection" target="_blank" rel="noopener">MoMA Open Data</a>',
@@ -776,7 +810,8 @@ function getRoomId() {
 const ROOM_ID = getRoomId();
 
 // ---- State ----
-let currentMuseum  = "moma";
+let currentMuseum  = "all";
+let searchMuseum   = "all";
 let galleryLoading = false;
 let galleryDone    = false;
 let artPool        = [];
@@ -793,7 +828,7 @@ async function fetchRandom(n) {
 }
 
 async function fetchSearch(q) {
-  const res = await fetch(`${apiBase()}?search=${encodeURIComponent(q.toLowerCase())}&museum=${currentMuseum}`);
+  const res = await fetch(`${apiBase()}?search=${encodeURIComponent(q.toLowerCase())}&museum=${searchMuseum}`);
   return (await res.json()).artworks || [];
 }
 
@@ -807,7 +842,6 @@ function switchMuseum(museum) {
   const info = MUSEUMS[museum];
   document.getElementById("gallery-tagline").textContent = info.tagline;
   document.getElementById("footer-source").innerHTML = info.footerHtml;
-  document.getElementById("modal-link").textContent = info.modalLink;
 
   const hints = info.searchHints;
   document.getElementById("search-hints").innerHTML =
@@ -833,6 +867,13 @@ function makeCard(artwork, onClick) {
   img.loading = "lazy";
   img.alt = artwork.title || "";
   img.src = artwork.thumbnailUrl;
+
+  if (artwork.museum && MUSEUM_LABELS[artwork.museum]) {
+    const badge = document.createElement("div");
+    badge.className = "museum-badge";
+    badge.textContent = MUSEUM_LABELS[artwork.museum];
+    div.appendChild(badge);
+  }
 
   const overlay = document.createElement("div");
   overlay.className = "overlay";
@@ -868,7 +909,8 @@ function openModal(artwork) {
     .map(s => `<span>${esc(s)}</span>`).join("<br>");
 
   link.href = artwork.url || "#";
-  link.textContent = MUSEUMS[currentMuseum].modalLink;
+  const artMuseum = artwork.museum && MUSEUMS[artwork.museum] ? artwork.museum : currentMuseum;
+  link.textContent = MUSEUMS[artMuseum].modalLink;
 
   if (artwork.thumbnailUrl) {
     img.src = artwork.thumbnailUrl;
@@ -975,8 +1017,12 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("search-input").addEventListener("keydown", (e) => {
     if (e.key === "Enter") doSearch();
   });
-  // Init footer
-  document.getElementById("footer-source").innerHTML = MUSEUMS[currentMuseum].footerHtml;
+  // Init from currentMuseum
+  const info = MUSEUMS[currentMuseum];
+  document.getElementById("gallery-tagline").textContent = info.tagline;
+  document.getElementById("footer-source").innerHTML = info.footerHtml;
+  document.getElementById("search-hints").innerHTML =
+    "Try: " + info.searchHints.map(h => `<span onclick="quickSearch('${h}')">${h}</span>`).join("");
 });
 
 // ---- Curate: dynamic slots ----

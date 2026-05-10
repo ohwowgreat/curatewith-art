@@ -13,6 +13,19 @@ async function redisCmd(
   return json.result;
 }
 
+async function redisPipeline(
+  url: string,
+  token: string,
+  cmds: (string | number)[][]
+): Promise<{ result: unknown }[]> {
+  const res = await fetch(`${url}/pipeline`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(cmds),
+  });
+  return res.json() as Promise<{ result: unknown }[]>;
+}
+
 function flatToObj(arr: string[]): Record<string, string> {
   const out: Record<string, string> = {};
   for (let i = 0; i < arr.length - 1; i += 2) out[arr[i]] = arr[i + 1];
@@ -32,6 +45,7 @@ interface Artwork {
   department: string;
   url: string;
   thumbnailUrl: string;
+  museum?: string;
 }
 
 interface CurateState {
@@ -39,7 +53,26 @@ interface CurateState {
   users: Record<string, string>;
 }
 
-const ALLOWED_MUSEUMS = new Set(["moma", "met", "aic", "cma", "nga"]);
+const SINGLE_MUSEUMS = new Set(["moma", "met", "aic", "cma", "nga"]);
+const ALL_MUSEUMS = ["moma", "met", "aic", "cma", "nga"];
+
+async function fetchArtworkPairs(
+  redisUrl: string,
+  redisToken: string,
+  pairs: { prefix: string; id: string }[]
+): Promise<Artwork[]> {
+  if (pairs.length === 0) return [];
+  const cmds = pairs.map(({ prefix, id }) => ["hgetall", `${prefix}:artwork:${id}`]);
+  const results = await redisPipeline(redisUrl, redisToken, cmds);
+  return results
+    .map((r, i) => {
+      const obj = flatToObj(r.result as string[]);
+      if (!obj || !obj.id) return null;
+      obj.museum = pairs[i].prefix;
+      return obj as Artwork;
+    })
+    .filter(Boolean) as Artwork[];
+}
 
 export default class GalleryServer implements Party.Server {
   state: CurateState = {
@@ -55,7 +88,8 @@ export default class GalleryServer implements Party.Server {
     const redisToken = this.room.env.UPSTASH_REDIS_REST_TOKEN as string;
 
     const museumParam = url.searchParams.get("museum") ?? "";
-    const prefix = ALLOWED_MUSEUMS.has(museumParam)
+    const isAll = museumParam === "all";
+    const prefix = SINGLE_MUSEUMS.has(museumParam)
       ? museumParam
       : ((this.room.env.MUSEUM_PREFIX as string | undefined) ?? "moma");
 
@@ -68,7 +102,45 @@ export default class GalleryServer implements Party.Server {
       return new Response(null, { status: 204, headers: cors });
     }
 
-    // GET ?page=N&limit=N
+    // GET ?random=N
+    if (url.searchParams.has("random")) {
+      const n = parseInt(url.searchParams.get("random") ?? "4");
+      const prefixes = isAll ? ALL_MUSEUMS : [prefix];
+      const perMuseum = Math.max(1, Math.ceil(n / prefixes.length));
+
+      const totals = await Promise.all(
+        prefixes.map((p) => redisCmd(redisUrl, redisToken, "llen", `${p}:ids`) as Promise<number>)
+      );
+
+      const indexCmds: (string | number)[][] = [];
+      const indexPrefixes: string[] = [];
+      prefixes.forEach((p, i) => {
+        const total = totals[i];
+        if (!total) return;
+        const count = Math.min(perMuseum, total);
+        const indices = new Set<number>();
+        while (indices.size < count) indices.add(Math.floor(Math.random() * total));
+        [...indices].forEach((idx) => {
+          indexCmds.push(["lindex", `${p}:ids`, idx]);
+          indexPrefixes.push(p);
+        });
+      });
+
+      if (indexCmds.length === 0)
+        return new Response(JSON.stringify({ artworks: [] }), { headers: cors });
+
+      const idsData = await redisPipeline(redisUrl, redisToken, indexCmds);
+      const pairs = idsData
+        .map((r, i) =>
+          r.result ? { prefix: indexPrefixes[i], id: r.result as string } : null
+        )
+        .filter(Boolean) as { prefix: string; id: string }[];
+
+      const artworks = await fetchArtworkPairs(redisUrl, redisToken, pairs);
+      return new Response(JSON.stringify({ artworks }), { headers: cors });
+    }
+
+    // GET ?page=N&limit=N  (single museum only)
     if (url.searchParams.has("page")) {
       const page = parseInt(url.searchParams.get("page") ?? "1");
       const limit = parseInt(url.searchParams.get("limit") ?? "24");
@@ -82,65 +154,40 @@ export default class GalleryServer implements Party.Server {
       if (!ids || ids.length === 0)
         return new Response(JSON.stringify({ artworks: [] }), { headers: cors });
 
-      const pipeline = ids.map((id) => ["hgetall", `${prefix}:artwork:${id}`]);
-      const res = await fetch(`${redisUrl}/pipeline`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${redisToken}`, "Content-Type": "application/json" },
-        body: JSON.stringify(pipeline),
-      });
-      const results = (await res.json()) as { result: string[] }[];
-      const artworks = results.map((r) => flatToObj(r.result)).filter((r) => r && r.id);
-      return new Response(JSON.stringify({ artworks }), { headers: cors });
-    }
-
-    // GET ?random=N
-    if (url.searchParams.has("random")) {
-      const n = parseInt(url.searchParams.get("random") ?? "4");
-      const total = (await redisCmd(redisUrl, redisToken, "llen", `${prefix}:ids`)) as number;
-
-      const indices = new Set<number>();
-      while (indices.size < Math.min(n, total)) {
-        indices.add(Math.floor(Math.random() * total));
-      }
-
-      const pipeline = [...indices].map((i) => ["lindex", `${prefix}:ids`, i]);
-      const idsRes = await fetch(`${redisUrl}/pipeline`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${redisToken}`, "Content-Type": "application/json" },
-        body: JSON.stringify(pipeline),
-      });
-      const idsData = (await idsRes.json()) as { result: string }[];
-      const ids = idsData.map((r) => r.result).filter(Boolean);
-
-      const pipeline2 = ids.map((id) => ["hgetall", `${prefix}:artwork:${id}`]);
-      const res2 = await fetch(`${redisUrl}/pipeline`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${redisToken}`, "Content-Type": "application/json" },
-        body: JSON.stringify(pipeline2),
-      });
-      const results2 = (await res2.json()) as { result: string[] }[];
-      const artworks = results2.map((r) => flatToObj(r.result)).filter((r) => r && r.id);
+      const pairs = ids.map((id) => ({ prefix, id }));
+      const artworks = await fetchArtworkPairs(redisUrl, redisToken, pairs);
       return new Response(JSON.stringify({ artworks }), { headers: cors });
     }
 
     // GET ?search=Q
     if (url.searchParams.has("search")) {
       const q = url.searchParams.get("search")!.toLowerCase();
-      const ids = (await redisCmd(
-        redisUrl, redisToken, "smembers", `${prefix}:search:${q}`
-      )) as string[];
+      const words = q.split(/\s+/).filter(Boolean);
+      const prefixes = isAll ? ALL_MUSEUMS : [prefix];
+      const limitPerMuseum = isAll ? 6 : 30;
 
-      if (!ids || ids.length === 0)
+      const idSets = await Promise.all(
+        prefixes.map((p) => {
+          const keys = words.map((w) => `${p}:search:${w}`);
+          const cmd = keys.length === 1
+            ? redisCmd(redisUrl, redisToken, "smembers", keys[0])
+            : redisCmd(redisUrl, redisToken, "sinter", ...keys);
+          return cmd as Promise<string[] | null>;
+        })
+      );
+
+      const pairs: { prefix: string; id: string }[] = [];
+      idSets.forEach((ids, i) => {
+        if (!ids || ids.length === 0) return;
+        ids.slice(0, limitPerMuseum).forEach((id) =>
+          pairs.push({ prefix: prefixes[i], id })
+        );
+      });
+
+      if (pairs.length === 0)
         return new Response(JSON.stringify({ artworks: [] }), { headers: cors });
 
-      const pipeline = ids.slice(0, 30).map((id) => ["hgetall", `${prefix}:artwork:${id}`]);
-      const res = await fetch(`${redisUrl}/pipeline`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${redisToken}`, "Content-Type": "application/json" },
-        body: JSON.stringify(pipeline),
-      });
-      const results = (await res.json()) as { result: string[] }[];
-      const artworks = results.map((r) => flatToObj(r.result)).filter((r) => r && r.id);
+      const artworks = await fetchArtworkPairs(redisUrl, redisToken, pairs);
       return new Response(JSON.stringify({ artworks }), { headers: cors });
     }
 
@@ -166,6 +213,7 @@ export default class GalleryServer implements Party.Server {
       type: string;
       slot?: number;
       artwork?: Artwork | null;
+      slots?: (Artwork | null)[];
       name?: string;
     };
 

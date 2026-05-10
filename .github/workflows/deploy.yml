@@ -1,4 +1,4 @@
-name: Deploy to Cloudflare
+name: Deploy
 
 on:
   push:
@@ -15,7 +15,11 @@ jobs:
           node-version: '20'
           cache: 'npm'
       - run: npm ci
-      - name: Deploy
+      - name: Deploy PartyKit server
+        env:
+          PARTYKIT_TOKEN: ${{ secrets.PARTYKIT_TOKEN }}
+        run: npx partykit deploy
+      - name: Deploy Cloudflare proxy worker
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
