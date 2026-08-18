@@ -5,3 +5,22 @@ compatibility_date = "2024-01-01"
 routes = [
   { pattern = "curatewith.art/*", zone_name = "curatewith.art" }
 ]
+
+# The single-page app is bundled into the Worker as a text module and served from
+# there, since 2026-08-18. PartyKit used to serve it via `"serve": "public"` in
+# partykit.json, but its custom domain went unresolvable and cannot be redeployed.
+# One 34 KB file, so bundling it beats a static-assets binding: nothing to bind,
+# nothing to fall out of sync.
+rules = [
+  { type = "Text", globs = ["**/*.html"] }
+]
+
+# The curate-together board: one Durable Object per room (party/room.ts).
+# SQLite-backed classes work on every Workers plan and are the current default.
+[[durable_objects.bindings]]
+name = "CURATE_ROOM"
+class_name = "CurateRoom"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["CurateRoom"]
